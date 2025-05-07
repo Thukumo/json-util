@@ -11,7 +11,7 @@ fn parse_obj(file: &Vec<String>, pos: usize) -> JsonValue {
         let s = &file[pos];
         match s.as_str() {
             "{" => {
-                if brace == 1 {
+                if brace == 1 && bracket == 0 {
                     res.insert(key.take().unwrap(),parse_obj(file, pos));
                 }
                 brace += 1;
@@ -20,7 +20,7 @@ fn parse_obj(file: &Vec<String>, pos: usize) -> JsonValue {
                 brace -= 1;
             }
             "[" => {
-                if bracket == 0 {
+                if bracket == 0 && brace == 1 {
                     res.insert(key.take().unwrap(), parse_arr(file, pos));
                 }
                 bracket += 1;
@@ -71,7 +71,7 @@ fn parse_arr(file: &Vec<String>, pos: usize) -> JsonValue {
         let s = &file[pos];
         match s.as_str() {
             "{" => {
-                if brace == 0 {
+                if brace == 0 && bracket == 1 {
                     res.push(parse_obj(file, pos));
                 }
                 brace += 1;
@@ -80,7 +80,7 @@ fn parse_arr(file: &Vec<String>, pos: usize) -> JsonValue {
                 brace -= 1;
             }
             "[" => {
-                if bracket == 1 {
+                if bracket == 1 && brace == 0 {
                     res.push(parse_arr(file, pos));
                 }
                 bracket += 1;
@@ -111,27 +111,31 @@ fn parse_arr(file: &Vec<String>, pos: usize) -> JsonValue {
 
 pub fn parse(path: PathBuf) -> JsonValue {
     let mut in_string = false;
+    let mut last = 'a';
     let mut in_string2 = false;
+    let mut last2 = 'a';
     /*
     filterが終わった時点でin_stringはfalseなので使いまわせるが、Rustではイテレータのメゾットチェーンは遅延評価らしいので、
     filterで暗黙的に作られてる可変参照のライフタイム的にfoldでin_stringを使用することができない
     */
     let file = std::fs::read_to_string(path).unwrap().chars().filter(|c| {
-        match c {
+        let res = match c {
             '\"' => {
-                in_string = !in_string;
+                in_string = !in_string || last == '\\';
                 true
             }
             _ => {
                 in_string || !c.is_whitespace()
             }
-        }
+        };
+        last = *c;
+        res
     }).fold((String::new(), Vec::<String>::new()), |state, c|{
         let (mut cur, mut res) = state;
         if in_string2 {
             match c {
                 '\"' => {
-                    in_string2 = false;
+                    in_string2 = last2 == '\\';
                 }
                 _ => {}
             }
@@ -148,7 +152,7 @@ pub fn parse(path: PathBuf) -> JsonValue {
                     }
                     cur.clear();
                 }
-                _ if "{}:".contains(c) => {
+                _ if "{}:[]".contains(c) => {
                     if !cur.is_empty() {
                         res.push(cur.clone());
                     }
@@ -160,6 +164,7 @@ pub fn parse(path: PathBuf) -> JsonValue {
                 }
             }
         }
+        last2 = c;
         (cur, res)
     }).1;
     // メモ ストリーミングもアリ
