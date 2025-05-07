@@ -1,172 +1,142 @@
 use crate::{JsonValue, Number};
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
 
-fn parse_obj(file: &Vec<String>, pos: usize) -> JsonValue {
-    let mut pos = pos;
-    let mut brace = 0;
-    let mut bracket = 0;
-    let mut res = HashMap::<String, JsonValue>::new();
+fn parse_value(s: &str) -> JsonValue {
+    if s.starts_with('"') {
+        JsonValue::String(s[1..s.len() - 1].to_string())
+    } else if s.starts_with("n") {
+        JsonValue::Null
+    } else if s.starts_with("t") {
+        JsonValue::Bool(true)
+    } else if s.starts_with("f") {
+        JsonValue::Bool(false)
+    } else if s.contains('.') {
+        JsonValue::Number(Number::Float(s.parse().unwrap()))
+    } else {
+        JsonValue::Number(Number::Int(s.parse().unwrap()))
+    }
+}
+
+fn parse_obj(file: &[String], mut pos: usize) -> JsonValue {
+    let mut brace_count = 0;
+    let mut bracket_count = 0;
+    let mut result = HashMap::<String, JsonValue>::new();
     let mut key = None;
+
     loop {
-        let s = &file[pos];
-        match s.as_str() {
+        let token = &file[pos];
+        println!("{}", token);
+        match token.as_str() {
             "{" => {
-                if brace == 1 && bracket == 0 {
-                    res.insert(key.take().unwrap(),parse_obj(file, pos));
+                if brace_count == 1 && bracket_count == 0 {
+                    result.insert(key.take().unwrap(), parse_obj(file, pos));
                 }
-                brace += 1;
+                brace_count += 1;
             }
             "}" => {
-                brace -= 1;
+                brace_count -= 1;
             }
             "[" => {
-                if bracket == 0 && brace == 1 {
-                    res.insert(key.take().unwrap(), parse_arr(file, pos));
+                if bracket_count == 0 && brace_count == 1 {
+                    result.insert(key.take().unwrap(), parse_arr(file, pos));
                 }
-                bracket += 1;
+                bracket_count += 1;
             }
             "]" => {
-                bracket -= 1;
+                bracket_count -= 1;
             }
-            _ if brace != 1 || bracket != 0 => {}
             ":" => {}
+            _ if brace_count != 1 || bracket_count != 0 => {}
             _ => {
                 if key.is_none() {
-                    key = Some(s.clone()[1..s.len()-1].to_string());
+                    key = Some(token[1..token.len() - 1].to_string());
                 } else {
-                    // array, objectは上の方で処理しているので、"値"だけを扱えばよい
-                    res.insert(key.take().unwrap(),  {
-                        if s.starts_with('\"') {
-                        //ダブルクォーテーションを取り除く必要がある
-                            JsonValue::String(s.clone()[1..s.len()-1].to_string())
-                        } else if s.starts_with("n") {
-                            JsonValue::Null
-                        } else if s.starts_with("t") {
-                            JsonValue::Bool(true)
-                        } else if s.starts_with("f") {
-                            JsonValue::Bool(false)
-                        } else if s.contains('.') {
-                            JsonValue::Number(Number::Float(s.parse().unwrap()))
-                        } else {
-                            JsonValue::Number(Number::Int(s.parse().unwrap()))
-                        }
-                    });
+                    result.insert(key.take().unwrap(), parse_value(token));
                 }
             }
         };
-        if brace == 0 {
-            return JsonValue::Object(res);
+        if brace_count == 0 {
+            return JsonValue::Object(result);
         }
         pos += 1;
     }
 }
 
-fn parse_arr(file: &Vec<String>, pos: usize) -> JsonValue {
-    let mut pos = pos;
-    let mut bracket = 0;
-    let mut brace = 0;
-    let mut res = vec!();
+fn parse_arr(file: &[String], mut pos: usize) -> JsonValue {
+    let mut bracket_count = 0;
+    let mut brace_count = 0;
+    let mut result = vec![];
 
     loop {
-        let s = &file[pos];
-        match s.as_str() {
+        let token = &file[pos];
+        match token.as_str() {
             "{" => {
-                if brace == 0 && bracket == 1 {
-                    res.push(parse_obj(file, pos));
+                if brace_count == 0 && bracket_count == 1 {
+                    result.push(parse_obj(file, pos));
                 }
-                brace += 1;
+                brace_count += 1;
             }
             "}" => {
-                brace -= 1;
+                brace_count -= 1;
             }
             "[" => {
-                if bracket == 1 && brace == 0 {
-                    res.push(parse_arr(file, pos));
+                if bracket_count == 1 && brace_count == 0 {
+                    result.push(parse_arr(file, pos));
                 }
-                bracket += 1;
+                bracket_count += 1;
             }
             "]" => {
-                bracket -= 1;
+                bracket_count -= 1;
             }
-            _ if bracket != 1 || brace != 0 => {}
+            _ if bracket_count != 1 || brace_count != 0 => {}
             _ => {
-                if s.starts_with('\"') {
-                    //ダブルクォーテーションを取り除く必要がある
-                    res.push(JsonValue::String(s.clone()[1..s.len()-1].to_string()));
-                } else if s.starts_with("n") {
-                    res.push(JsonValue::Null);
-                } else if s.starts_with("t") {
-                    res.push(JsonValue::Bool(true));
-                } else if s.starts_with("f") {
-                    res.push(JsonValue::Bool(false));
-                }
+                result.push(parse_value(token));
             }
         }
-        if bracket == 0 {
-            return JsonValue::Array(res);
+        if bracket_count == 0 {
+            return JsonValue::Array(result);
         }
         pos += 1;
     }
 }
 
 pub fn parse(path: PathBuf) -> JsonValue {
-    let mut in_string = false;
-    let mut last = 'a';
-    let mut in_string2 = false;
-    let mut last2 = 'a';
-    /*
-    filterが終わった時点でin_stringはfalseなので使いまわせるが、Rustではイテレータのメゾットチェーンは遅延評価らしいので、
-    filterで暗黙的に作られてる可変参照のライフタイム的にfoldでin_stringを使用することができない
-    */
-    let file = std::fs::read_to_string(path).unwrap().chars().filter(|c| {
-        let res = match c {
-            '\"' => {
-                in_string = !in_string || last == '\\';
-                true
+    let tmp = read_to_string(path).expect("Failed to read the file");
+    let tmp = tmp.split('"').collect::<Vec<&str>>();
+    let mut file: Vec<String> = vec![tmp[0].to_string()];
+    // i=1のときはpopされない(0が波かっこなため)
+    for i in 1..tmp.len() {
+        if tmp[i-1].ends_with('\\') {
+            if let Some(last) = file.pop() {
+                file.push(last + "\"" + tmp[i]);
             }
-            _ => {
-                in_string || !c.is_whitespace()
-            }
-        };
-        last = *c;
-        res
-    }).fold((String::new(), Vec::<String>::new()), |state, c|{
-        let (mut cur, mut res) = state;
-        if in_string2 {
-            match c {
-                '\"' => {
-                    in_string2 = last2 == '\\';
-                }
-                _ => {}
-            }
-            cur.push(c);
         } else {
-            match c {
-                '\"' => {
-                    in_string2 = true;
-                    cur.push(c);
-                }
-                ',' => {
-                    if !cur.is_empty() {
-                        res.push(cur.clone());
-                    }
-                    cur.clear();
-                }
-                _ if "{}:[]".contains(c) => {
-                    if !cur.is_empty() {
-                        res.push(cur.clone());
-                    }
-                    cur.clear();
-                    res.push(c.to_string());
-                }
-                _ => {
-                    cur.push(c);
-                }
-            }
+            file.push(tmp[i].to_string());
         }
-        last2 = c;
-        (cur, res)
-    }).1;
-    // メモ ストリーミングもアリ
+    }
+    // ここに入る時点で、fileはString(Keyを含む)の文字列とそれ以外の要素の文字列が交互に格納されている
+    let file = file.into_iter().enumerate().flat_map(|(i, s)| {
+        if i % 2 == 0 {
+            s.chars().filter(|c| !c.is_ascii_whitespace())
+            .fold((Vec::<String>::new(), String::new()), |state, c| {
+                let (mut res, mut current) = state;
+                let c = c.to_string();
+                if "{}[]:,".contains(&c) {
+                    if !current.is_empty() {
+                        res.push(current);
+                        current = String::new();
+                    }
+                    if c != "," {
+                        res.push(c);
+                    }
+                } else {
+                    current += &c;
+                }
+                (res, current)
+            }).0
+        } else {
+            vec!["\"".to_string() + &s + "\""]
+        }
+    }).collect::<Vec<String>>();
     parse_obj(&file, 0)
 }
