@@ -103,7 +103,7 @@ fn parse_arr(file: &[String], mut pos: usize) -> JsonValue {
 pub fn parse(path: PathBuf) -> JsonValue {
     let tmp = read_to_string(path).expect("Failed to read the file");
     let tmp = tmp.split('"').collect::<Vec<&str>>();
-    let mut file: Vec<String> = vec![tmp[0].to_string()];
+    let mut file = vec![tmp[0].to_string()];
     // i=1のときはpopされない(0が波かっこなため)
     for i in 1..tmp.len() {
         if tmp[i-1].ends_with('\\') {
