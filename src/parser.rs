@@ -113,7 +113,7 @@ pub fn parse(path: PathBuf) -> JsonValue {
     let mut in_string = false;
     let mut in_string2 = false;
     /*
-    filterが終わった時点でin_stringはfalseなので使いまわせるが、Rustではイテレータのメゾットチェーンはcollectが呼ばれるまで評価を遅延するので、
+    filterが終わった時点でin_stringはfalseなので使いまわせるが、Rustではイテレータのメゾットチェーンは遅延評価らしいので、
     filterで暗黙的に作られてる可変参照のライフタイム的にfoldでin_stringを使用することができない
     */
     let file = std::fs::read_to_string(path).unwrap().chars().filter(|c| {
