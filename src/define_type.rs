@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct TypeUnmatchedError ();
 
 #[derive(Debug, Clone)]
@@ -37,9 +38,15 @@ impl TryInto<i64> for Number {
     }
 }
 
-#[allow(dead_code)]
 impl JsonValue {
-    fn at(&self, s: &str) -> Result<Self, TypeUnmatchedError> {
+    pub fn at(self, vec: Vec<&str>) -> Result<Self, TypeUnmatchedError> {
+        let mut res = self;
+        for s in vec {
+            res = res._at(s)?
+        }
+        Ok(res)
+    }
+    fn _at(&self, s: &str) -> Result<Self, TypeUnmatchedError> {
         if let Self::Object(hoge) = self {
             Ok(hoge[&s.to_string()].clone())
         } else {
@@ -47,6 +54,7 @@ impl JsonValue {
         }
     }
 }
+
 impl TryInto<String> for JsonValue {
     type Error = TypeUnmatchedError;
     fn try_into(self) -> Result<String, Self::Error> {
