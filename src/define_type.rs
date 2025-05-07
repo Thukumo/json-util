@@ -1,33 +1,32 @@
 use std::{collections::HashMap, ops::Index};
 
 #[derive(Debug)]
-pub struct TypeUnmatchedError ();
+#[allow(dead_code)]
+pub struct TypeUnmatchedError(String);
 
 #[derive(Debug, Clone)]
 pub enum Number {
     Int(i64),
     Float(f64),
 }
-impl TryInto<f64> for Number {
-    type Error = TypeUnmatchedError;
-    fn try_into(self) -> Result<f64, Self::Error> {
-        if let Self::Float(num) = self {
-            Ok(num)
-        } else {
-            Err(TypeUnmatchedError())
+
+macro_rules! impl_try_into {
+    ($enum_type:ty, $variant:ident, $output:ty) => {
+        impl TryInto<$output> for $enum_type {
+            type Error = TypeUnmatchedError;
+            fn try_into(self) -> Result<$output, Self::Error> {
+                if let Self::$variant(value) = self {
+                    Ok(value)
+                } else {
+                    Err(TypeUnmatchedError(format!("Expected {}, but found another variant", stringify!($variant))))
+                }
+            }
         }
-    }
+    };
 }
-impl TryInto<i64> for Number {
-    type Error = TypeUnmatchedError;
-    fn try_into(self) -> Result<i64, Self::Error> {
-        if let Self::Int(num) = self {
-            Ok(num)
-        } else {
-            Err(TypeUnmatchedError())
-        }
-    }
-}
+
+impl_try_into!(Number, Float, f64);
+impl_try_into!(Number, Int, i64);
 
 #[derive(Debug, Clone)]
 pub enum JsonValue {
@@ -38,73 +37,27 @@ pub enum JsonValue {
     Object(HashMap<String, JsonValue>),
     Array(Vec<JsonValue>),
 }
-impl TryInto<String> for JsonValue {
-    type Error = TypeUnmatchedError;
-    fn try_into(self) -> Result<String, Self::Error> {
-        if let Self::String(s) = self {
-            Ok(s)
-        } else {
-            Err(TypeUnmatchedError())
-        }
-    }
-}
-impl TryInto<Number> for JsonValue {
-    type Error = TypeUnmatchedError;
-    fn try_into(self) -> Result<Number, Self::Error> {
-        if let Self::Number(num) = self {
-            Ok(num)
-        } else {
-            Err(TypeUnmatchedError())
-        }
-    }
-}
-impl TryInto<bool> for JsonValue {
-    type Error = TypeUnmatchedError;
-    fn try_into(self) -> Result<bool, Self::Error> {
-        if let Self::Bool(b) = self {
-            Ok(b)
-        } else {
-            Err(TypeUnmatchedError())
-        }
-    }
-}
-impl TryInto<HashMap<String, JsonValue>> for JsonValue {
-    type Error = TypeUnmatchedError;
-    fn try_into(self) -> Result<HashMap<String, Self>, Self::Error> {
-        if let Self::Object(obj) = self {
-            Ok(obj)
-        } else {
-            Err(TypeUnmatchedError())
-        }
-    }
-}
-impl TryInto<Vec<JsonValue>> for JsonValue {
-    type Error = TypeUnmatchedError;
-    fn try_into(self) -> Result<Vec<JsonValue>, Self::Error> {
-        if let Self::Array(arr) = self {
-            Ok(arr)
-        } else {
-            Err(TypeUnmatchedError())
-        }
-    }
-}
+
+impl_try_into!(JsonValue, String, String);
+impl_try_into!(JsonValue, Number, Number);
+impl_try_into!(JsonValue, Bool, bool);
+impl_try_into!(JsonValue, Object, HashMap<String, JsonValue>);
+impl_try_into!(JsonValue, Array, Vec<JsonValue>);
+
 impl Index<&str> for JsonValue {
     type Output = Self;
     fn index(&self, index: &str) -> &Self::Output {
-        if let Self::Object(hoge) = self {
-            hoge.get(index).expect("Key not found in object")
+        if let Self::Object(map) = self {
+            map.get(index).expect(&format!("Key '{}' not found in object", index))
         } else {
-            panic!()
+            panic!("Attempted to index a non-object JsonValue");
         }
     }
 }
+
 impl Index<String> for JsonValue {
     type Output = Self;
     fn index(&self, index: String) -> &Self::Output {
-        if let Self::Object(hoge) = self {
-            hoge.get(&index).unwrap()
-        } else {
-            panic!()
-        }
+        self.index(index.as_str())
     }
 }

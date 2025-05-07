@@ -17,35 +17,30 @@ fn parse_value(s: &str) -> JsonValue {
     }
 }
 
-fn parse_obj(file: &[String], mut pos: usize) -> JsonValue {
-    let mut brace_count = 0;
-    let mut bracket_count = 0;
+fn parse_obj(file: &[String], pos: usize) -> (usize, JsonValue) {
     let mut result = HashMap::<String, JsonValue>::new();
     let mut key = None;
+    let (first_pos, mut pos) = (pos, pos);
 
     loop {
         let token = &file[pos];
         match token.as_str() {
             "{" => {
-                if brace_count == 1 && bracket_count == 0 {
-                    result.insert(key.take().unwrap(), parse_obj(file, pos));
+                if pos != first_pos {
+                    let (diff, val) = parse_obj(file, pos);
+                    result.insert(key.take().unwrap(), val);
+                    pos += diff;
                 }
-                brace_count += 1;
             }
             "}" => {
-                brace_count -= 1;
+                return (pos - first_pos, JsonValue::Object(result));
             }
             "[" => {
-                if bracket_count == 0 && brace_count == 1 {
-                    result.insert(key.take().unwrap(), parse_arr(file, pos));
-                }
-                bracket_count += 1;
+                let (diff, val) = parse_arr(file, pos);
+                result.insert(key.take().unwrap(), val);
+                pos += diff;
             }
-            "]" => {
-                bracket_count -= 1;
-            }
-            ":" => {}
-            _ if brace_count != 1 || bracket_count != 0 => {}
+            ":" | "]" => {}
             _ => {
                 if key.is_none() {
                     key = Some(token[1..token.len() - 1].to_string());
@@ -54,46 +49,36 @@ fn parse_obj(file: &[String], mut pos: usize) -> JsonValue {
                 }
             }
         };
-        if brace_count == 0 {
-            return JsonValue::Object(result);
-        }
         pos += 1;
     }
 }
 
-fn parse_arr(file: &[String], mut pos: usize) -> JsonValue {
-    let mut bracket_count = 0;
-    let mut brace_count = 0;
+fn parse_arr(file: &[String], pos: usize) -> (usize, JsonValue) {
+    let (first_pos, mut pos) = (pos, pos);
     let mut result = vec![];
 
     loop {
         let token = &file[pos];
         match token.as_str() {
             "{" => {
-                if brace_count == 0 && bracket_count == 1 {
-                    result.push(parse_obj(file, pos));
-                }
-                brace_count += 1;
+                let (diff, val) = parse_obj(file, pos);
+                result.push(val);
+                pos += diff;
             }
-            "}" => {
-                brace_count -= 1;
-            }
+            "}" => {}
             "[" => {
-                if bracket_count == 1 && brace_count == 0 {
-                    result.push(parse_arr(file, pos));
+                if pos != first_pos {
+                    let (diff, val) = parse_arr(file, pos);
+                    result.push(val);
+                    pos += diff;
                 }
-                bracket_count += 1;
             }
             "]" => {
-                bracket_count -= 1;
+                return (pos - first_pos, JsonValue::Array(result));
             }
-            _ if bracket_count != 1 || brace_count != 0 => {}
             _ => {
                 result.push(parse_value(token));
             }
-        }
-        if bracket_count == 0 {
-            return JsonValue::Array(result);
         }
         pos += 1;
     }
@@ -116,7 +101,7 @@ pub fn parse(path: PathBuf) -> JsonValue {
     let file = file.into_iter().enumerate().flat_map(|(i, s)| {
         if i % 2 == 0 {
             s.chars().filter(|c| !c.is_ascii_whitespace())
-            .fold((Vec::<String>::new(), String::new()), |state, c| {
+                .fold((Vec::<String>::new(), String::new()), |state, c| {
                 let (mut res, mut current) = state;
                 let c = c.to_string();
                 if "{}[]:,".contains(&c) {
@@ -136,5 +121,5 @@ pub fn parse(path: PathBuf) -> JsonValue {
             vec!["\"".to_string() + &s + "\""]
         }
     }).collect::<Vec<String>>();
-    parse_obj(&file, 0)
+    parse_obj(&file, 0).1
 }
