@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Index};
 
 #[derive(Debug)]
 pub struct TypeUnmatchedError ();
@@ -38,23 +38,6 @@ impl TryInto<i64> for Number {
     }
 }
 
-impl JsonValue {
-    pub fn at(self, vec: Vec<&str>) -> Result<Self, TypeUnmatchedError> {
-        let mut res = self;
-        for s in vec {
-            res = res._at(s)?
-        }
-        Ok(res)
-    }
-    fn _at(&self, s: &str) -> Result<Self, TypeUnmatchedError> {
-        if let Self::Object(hoge) = self {
-            Ok(hoge[&s.to_string()].clone())
-        } else {
-            Err(TypeUnmatchedError())
-        }
-    }
-}
-
 impl TryInto<String> for JsonValue {
     type Error = TypeUnmatchedError;
     fn try_into(self) -> Result<String, Self::Error> {
@@ -68,7 +51,7 @@ impl TryInto<String> for JsonValue {
 impl TryInto<Number> for JsonValue {
     type Error = TypeUnmatchedError;
     fn try_into(self) -> Result<Number, Self::Error> {
-        if let JsonValue::Number(num) = self {
+        if let Self::Number(num) = self {
             Ok(num)
         } else {
             Err(TypeUnmatchedError())
@@ -78,7 +61,7 @@ impl TryInto<Number> for JsonValue {
 impl TryInto<bool> for JsonValue {
     type Error = TypeUnmatchedError;
     fn try_into(self) -> Result<bool, Self::Error> {
-        if let JsonValue::Bool(b) = self {
+        if let Self::Bool(b) = self {
             Ok(b)
         } else {
             Err(TypeUnmatchedError())
@@ -87,8 +70,8 @@ impl TryInto<bool> for JsonValue {
 }
 impl TryInto<HashMap<String, JsonValue>> for JsonValue {
     type Error = TypeUnmatchedError;
-    fn try_into(self) -> Result<HashMap<String, JsonValue>, Self::Error> {
-        if let JsonValue::Object(obj) = self {
+    fn try_into(self) -> Result<HashMap<String, Self>, Self::Error> {
+        if let Self::Object(obj) = self {
             Ok(obj)
         } else {
             Err(TypeUnmatchedError())
@@ -98,10 +81,31 @@ impl TryInto<HashMap<String, JsonValue>> for JsonValue {
 impl TryInto<Vec<JsonValue>> for JsonValue {
     type Error = TypeUnmatchedError;
     fn try_into(self) -> Result<Vec<JsonValue>, Self::Error> {
-        if let JsonValue::Array(arr) = self {
+        if let Self::Array(arr) = self {
             Ok(arr)
         } else {
             Err(TypeUnmatchedError())
         }
     }
+}
+impl Index<&str> for JsonValue {
+    type Output = Self;
+    fn index(&self, index: &str) -> &Self::Output {
+        if let Self::Object(hoge) = self {
+            hoge.get(index).expect("Key not found in object")
+        } else {
+            panic!()
+        }
+    }
+}
+impl Index<String> for JsonValue {
+    type Output = Self;
+    fn index(&self, index: String) -> &Self::Output {
+        if let Self::Object(hoge) = self {
+            hoge.get(&index).unwrap()
+        } else {
+            panic!()
+        }
+    }
+    
 }
