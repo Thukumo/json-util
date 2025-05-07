@@ -25,7 +25,6 @@ fn parse_obj(file: &[String], mut pos: usize) -> JsonValue {
 
     loop {
         let token = &file[pos];
-        println!("{}", token);
         match token.as_str() {
             "{" => {
                 if brace_count == 1 && bracket_count == 0 {
@@ -104,7 +103,6 @@ pub fn parse(path: PathBuf) -> JsonValue {
     let tmp = read_to_string(path).expect("Failed to read the file");
     let tmp = tmp.split('"').collect::<Vec<&str>>();
     let mut file = vec![tmp[0].to_string()];
-    // i=1のときはpopされない(0が波かっこなため)
     for i in 1..tmp.len() {
         if tmp[i-1].ends_with('\\') {
             if let Some(last) = file.pop() {
