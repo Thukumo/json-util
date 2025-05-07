@@ -4,15 +4,6 @@ use std::{collections::HashMap, ops::Index};
 pub struct TypeUnmatchedError ();
 
 #[derive(Debug, Clone)]
-pub enum JsonValue {
-    String(String),
-    Number(Number),
-    Bool(bool),
-    Null,
-    Object(HashMap<String, JsonValue>),
-    Array(Vec<JsonValue>),
-}
-#[derive(Debug, Clone)]
 pub enum Number {
     Int(i64),
     Float(f64),
@@ -38,6 +29,15 @@ impl TryInto<i64> for Number {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum JsonValue {
+    String(String),
+    Number(Number),
+    Bool(bool),
+    Null,
+    Object(HashMap<String, JsonValue>),
+    Array(Vec<JsonValue>),
+}
 impl TryInto<String> for JsonValue {
     type Error = TypeUnmatchedError;
     fn try_into(self) -> Result<String, Self::Error> {
@@ -107,5 +107,4 @@ impl Index<String> for JsonValue {
             panic!()
         }
     }
-    
 }
