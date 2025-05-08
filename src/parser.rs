@@ -114,7 +114,8 @@ pub fn parse(path: PathBuf) -> JsonValue {
                     }).into_iter().filter(|s| !s.is_empty()).collect()
                 } else {
                     vec!["\"".to_string() + &s + "\""]
-            });
+                }
+            );
             (state, String::new(), !odd)
         }
     }).0.into_iter().flatten().collect::<Vec<_>>(), 0).1
