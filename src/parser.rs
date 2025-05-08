@@ -80,8 +80,8 @@ fn parse_arr(file: &[String], pos: usize) -> (usize, JsonValue) {
     }
 }
 
-pub fn parse(path: &PathBuf) -> JsonValue {
-    parse_obj(&read_to_string(path).expect("Failed to read the file").split('"')
+pub fn parse(path: &PathBuf) -> Result<JsonValue, std::io::Error> {
+    Ok(parse_obj(&read_to_string(path)?.split('"')
         .fold((Vec::new(), String::new(), true), |state, s| {
         let (mut state, mut current, odd) = state;
         if s.ends_with('\\') {
@@ -113,5 +113,5 @@ pub fn parse(path: &PathBuf) -> JsonValue {
             );
             (state, String::new(), !odd)
         }
-    }).0.into_iter().flatten().collect::<Vec<_>>(), 0).1
+    }).0.into_iter().flatten().collect::<Vec<_>>(), 0).1)
 }
