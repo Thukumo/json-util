@@ -18,7 +18,7 @@ fn parse_value(s: &str) -> JsonValue {
 }
 
 fn parse_obj(file: &[String], pos: usize) -> (usize, JsonValue) {
-    let mut result = HashMap::<String, JsonValue>::new();
+    let mut result = HashMap::new();
     let mut key = None;
     let (first_pos, mut pos) = (pos, pos);
 
@@ -55,7 +55,7 @@ fn parse_obj(file: &[String], pos: usize) -> (usize, JsonValue) {
 
 fn parse_arr(file: &[String], pos: usize) -> (usize, JsonValue) {
     let (first_pos, mut pos) = (pos, pos);
-    let mut result = vec![];
+    let mut result = Vec::new();
 
     loop {
         let token = &file[pos];
@@ -86,7 +86,7 @@ fn parse_arr(file: &[String], pos: usize) -> (usize, JsonValue) {
 
 pub fn parse(path: PathBuf) -> JsonValue {
     parse_obj(&read_to_string(path).expect("Failed to read the file").split('"')
-        .fold((Vec::<Vec<String>>::new(), String::new(), true), |state, s| {
+        .fold((Vec::new(), String::new(), true), |state, s| {
         let (mut state, mut current, odd) = state;
         if s.ends_with('\\') {
             current.push_str(&s);
@@ -97,7 +97,7 @@ pub fn parse(path: PathBuf) -> JsonValue {
             state.push(
                 if odd {
                     s.chars().filter(|c| !c.is_ascii_whitespace())
-                        .fold(Vec::<String>::new(), |mut state, c| {
+                        .fold(Vec::new(), |mut state, c| {
                             match c {
                             '{' | '}' | '[' | ']' | ':' => {
                                 state.push(c.to_string());
@@ -117,5 +117,5 @@ pub fn parse(path: PathBuf) -> JsonValue {
             });
             (state, String::new(), !odd)
         }
-    }).0.into_iter().flatten().collect::<Vec<String>>(), 0).1
+    }).0.into_iter().flatten().collect::<Vec<_>>(), 0).1
 }
