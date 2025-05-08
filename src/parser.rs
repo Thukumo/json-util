@@ -80,7 +80,7 @@ fn parse_arr(file: &[String], pos: usize) -> (usize, JsonValue) {
     }
 }
 
-pub fn parse(path: PathBuf) -> JsonValue {
+pub fn parse(path: &PathBuf) -> JsonValue {
     parse_obj(&read_to_string(path).expect("Failed to read the file").split('"')
         .fold((Vec::new(), String::new(), true), |state, s| {
         let (mut state, mut current, odd) = state;
