@@ -4,11 +4,11 @@ use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
 fn parse_value(s: &str) -> JsonValue {
     if s.starts_with('"') {
         JsonValue::String(s[1..s.len() - 1].to_string())
-    } else if s.starts_with("n") {
+    } else if s.starts_with('n') {
         JsonValue::Null
-    } else if s.starts_with("t") {
+    } else if s.starts_with('t') {
         JsonValue::Bool(true)
-    } else if s.starts_with("f") {
+    } else if s.starts_with('f') {
         JsonValue::Bool(false)
     } else if s.contains('.') || s.contains('e') || s.contains('E') {
         JsonValue::Number(Number::Float(s.parse().unwrap()))
