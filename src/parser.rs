@@ -98,7 +98,7 @@ pub fn parse(path: PathBuf) -> JsonValue {
                 if odd {
                     s.chars().filter(|c| !c.is_ascii_whitespace())
                         .fold(Vec::new(), |mut state, c| {
-                            match c {
+                        match c {
                             '{' | '}' | '[' | ']' | ':' => {
                                 state.push(c.to_string());
                                 state.push(String::new());
