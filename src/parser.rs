@@ -40,7 +40,7 @@ fn parse_obj(file: &[String], pos: usize) -> (usize, JsonValue) {
                 result.insert(key.take().unwrap(), val);
                 pos += diff;
             }
-            ":" | "]" => {}
+            ":" | "," => {}
             _ => {
                 if key.is_none() {
                     key = Some(token[1..token.len() - 1].to_string());
@@ -65,7 +65,7 @@ fn parse_arr(file: &[String], pos: usize) -> (usize, JsonValue) {
                 result.push(val);
                 pos += diff;
             }
-            "}" => {}
+            "," => {}
             "[" => {
                 if pos != first_pos {
                     let (diff, val) = parse_arr(file, pos);
@@ -98,17 +98,11 @@ pub fn parse(path: PathBuf) -> JsonValue {
                 if odd {
                     s.chars().filter(|c| !c.is_ascii_whitespace())
                         .fold(Vec::new(), |mut state, c| {
-                        match c {
-                            '{' | '}' | '[' | ']' | ':' => {
-                                state.push(c.to_string());
-                                state.push(String::new());
-                            }
-                            ',' => {
-                                state.push(String::new());
-                            }
-                            _ => {
-                                state.last_mut().unwrap().push(c);
-                            }
+                        if "{}[]:,".contains(c) {
+                            state.push(c.to_string());
+                            state.push(String::new());
+                        } else {
+                            state.last_mut().unwrap().push(c);
                         }
                         state
                     }).into_iter().filter(|s| !s.is_empty()).collect()
