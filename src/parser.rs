@@ -10,7 +10,7 @@ fn parse_value(s: &str) -> JsonValue {
         JsonValue::Bool(true)
     } else if s.starts_with('f') {
         JsonValue::Bool(false)
-    } else if s.contains('.') || s.contains('e') || s.contains('E') {
+    } else if s.chars().any(|c| c == '.' || c == 'e' || c == 'E') {
         JsonValue::Number(Number::Float(s.parse().unwrap()))
     } else {
         JsonValue::Number(Number::Int(s.parse().unwrap()))
@@ -20,17 +20,15 @@ fn parse_value(s: &str) -> JsonValue {
 fn parse_obj(file: &[String], pos: usize) -> (usize, JsonValue) {
     let mut result = HashMap::new();
     let mut key = None;
-    let (first_pos, mut pos) = (pos, pos);
+    let (first_pos, mut pos) = (pos, pos+1);
 
     loop {
         let token = &file[pos];
         match token.as_str() {
             "{" => {
-                if pos != first_pos {
-                    let (diff, val) = parse_obj(file, pos);
-                    result.insert(key.take().unwrap(), val);
-                    pos += diff;
-                }
+                let (diff, val) = parse_obj(file, pos);
+                result.insert(key.take().unwrap(), val);
+                pos += diff;
             }
             "}" => {
                 return (pos - first_pos, JsonValue::Object(result));
@@ -54,7 +52,7 @@ fn parse_obj(file: &[String], pos: usize) -> (usize, JsonValue) {
 }
 
 fn parse_arr(file: &[String], pos: usize) -> (usize, JsonValue) {
-    let (first_pos, mut pos) = (pos, pos);
+    let (first_pos, mut pos) = (pos, pos+1);
     let mut result = Vec::new();
 
     loop {
@@ -67,11 +65,9 @@ fn parse_arr(file: &[String], pos: usize) -> (usize, JsonValue) {
             }
             "," => {}
             "[" => {
-                if pos != first_pos {
-                    let (diff, val) = parse_arr(file, pos);
-                    result.push(val);
-                    pos += diff;
-                }
+                let (diff, val) = parse_arr(file, pos);
+                result.push(val);
+                pos += diff;
             }
             "]" => {
                 return (pos - first_pos, JsonValue::Array(result));
