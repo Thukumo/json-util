@@ -93,15 +93,20 @@ pub fn parse(path: &PathBuf) -> JsonValue {
             state.push(
                 if odd {
                     s.chars().filter(|c| !c.is_ascii_whitespace())
-                        .fold(Vec::new(), |mut state, c| {
+                        .fold((Vec::new(), false), |state, c| {
+                        let (mut state, splitter) = state;
                         if "{}[]:,".contains(c) {
                             state.push(c.to_string());
-                            state.push(String::new());
+                            (state, true)
                         } else {
-                            state.last_mut().unwrap().push(c);
+                            if splitter {
+                                state.push(c.to_string());
+                            } else {
+                                state.last_mut().unwrap().push(c);
+                            }
+                            (state, false)
                         }
-                        state
-                    }).into_iter().filter(|s| !s.is_empty()).collect()
+                    }).0
                 } else {
                     vec!["\"".to_string() + &s + "\""]
                 }
