@@ -90,6 +90,7 @@ pub fn parse(path: PathBuf) -> JsonValue {
         // これで、fileはString(Keyを含む)の文字列とそれ以外の要素の文字列を交互に格納する 初めの要素はオブジェクトの波かっこになる
         if let Some(last) = state.last_mut() {
             if last.ends_with('\\') {
+                last.push('"');
                 last.push_str(s);
             } else {
                 state.push(s.to_string());
