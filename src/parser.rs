@@ -10,7 +10,7 @@ fn parse_value(s: &str) -> JsonValue {
         JsonValue::Bool(true)
     } else if s.starts_with("f") {
         JsonValue::Bool(false)
-    } else if s.contains('.') || s.contains('e') {
+    } else if s.contains('.') || s.contains('e') || s.contains('E') {
         JsonValue::Number(Number::Float(s.parse().unwrap()))
     } else {
         JsonValue::Number(Number::Int(s.parse().unwrap()))
