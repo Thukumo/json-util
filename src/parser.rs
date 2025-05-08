@@ -85,41 +85,37 @@ fn parse_arr(file: &[String], pos: usize) -> (usize, JsonValue) {
 }
 
 pub fn parse(path: PathBuf) -> JsonValue {
-    let file = read_to_string(path).expect("Failed to read the file");
-    let file = file.split('"').fold(Vec::<String>::new(), |mut state, s| {
-        // これで、fileはString(Keyを含む)の文字列とそれ以外の要素の文字列を交互に格納する 初めの要素はオブジェクトの波かっこになる
-        if let Some(last) = state.last_mut() {
-            if last.ends_with('\\') {
-                last.push('"');
-                last.push_str(s);
+    let file = read_to_string(path).expect("Failed to read the file").split('"')
+      .fold((Vec::<Vec<String>>::new(), String::new(), 0 as usize), |state, s| {
+        let (mut state, mut current, i) = state;
+        if s.ends_with('\\') {
+            current.push_str(&s);
+            current.push('"');
+            (state, current, i)
+        } else {
+            let s = current + &s;
+            state.push(if i % 2 == 0 {
+                s.chars().filter(|c| !c.is_ascii_whitespace())
+                    .fold(Vec::<String>::new(), |mut state, c| {
+                    match c {
+                        '{' | '}' | '[' | ']' | ':' => {
+                            state.push(c.to_string());
+                            state.push(String::new());
+                        }
+                        ',' => {
+                            state.push(String::new());
+                        }
+                        _ => {
+                            state.last_mut().unwrap().push(c);
+                        }
+                    }
+                    state
+                }).into_iter().filter(|s| !s.is_empty()).collect()
             } else {
-                state.push(s.to_string());
-            }
-        } else {
-            state.push(s.to_string());
+                vec!["\"".to_string() + &s + "\""]
+            });
+            (state, String::new(), i+1)
         }
-        state
-    }).into_iter().enumerate().flat_map(|(i, s)| {
-        if i % 2 == 0 {
-            s.chars().filter(|c| !c.is_ascii_whitespace())
-                .fold(Vec::<String>::new(), |mut state, c| {
-                match c {
-                    '{' | '}' | '[' | ']' | ':' => {
-                        state.push(c.to_string());
-                        state.push(String::new());
-                    }
-                    ',' => {
-                        state.push(String::new());
-                    }
-                    _ => {
-                        state.last_mut().unwrap().push(c);
-                    }
-                }
-                state
-            }).into_iter().filter(|s| !s.is_empty()).collect()
-        } else {
-            vec!["\"".to_string() + &s + "\""]
-        }
-    }).collect::<Vec<String>>();
+    }).0.into_iter().flatten().collect::<Vec<String>>();
     parse_obj(&file, 0).1
 }
