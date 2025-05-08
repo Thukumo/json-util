@@ -85,38 +85,37 @@ fn parse_arr(file: &[String], pos: usize) -> (usize, JsonValue) {
 }
 
 pub fn parse(path: PathBuf) -> JsonValue {
-    let tmp = read_to_string(path).expect("Failed to read the file");
-    let tmp = tmp.split('"').collect::<Vec<&str>>();
-    let mut file = vec![tmp[0].to_string()];
-    for i in 1..tmp.len() {
-        if tmp[i-1].ends_with('\\') {
-            if let Some(last) = file.pop() {
-                file.push(last + "\"" + tmp[i]);
+    let file = read_to_string(path).expect("Failed to read the file");
+    let file = file.split('"').fold(Vec::<String>::new(), |mut state, s| {
+        // これで、fileはString(Keyを含む)の文字列とそれ以外の要素の文字列を交互に格納する 初めの要素はオブジェクトの波かっこになる
+        if let Some(last) = state.last_mut() {
+            if last.ends_with('\\') {
+                last.push_str(s);
+            } else {
+                state.push(s.to_string());
             }
         } else {
-            file.push(tmp[i].to_string());
+            state.push(s.to_string());
         }
-    }
-    // ここに入る時点で、fileはString(Keyを含む)の文字列とそれ以外の要素の文字列が交互に格納されている
-    let file = file.into_iter().enumerate().flat_map(|(i, s)| {
+        state
+    }).into_iter().enumerate().flat_map(|(i, s)| {
         if i % 2 == 0 {
             s.chars().filter(|c| !c.is_ascii_whitespace())
-                .fold((Vec::<String>::new(), String::new()), |state, c| {
-                let (mut res, mut current) = state;
-                let c = c.to_string();
-                if "{}[]:,".contains(&c) {
-                    if !current.is_empty() {
-                        res.push(current);
-                        current = String::new();
+                .fold(Vec::<String>::new(), |mut state, c| {
+                match c {
+                    '{' | '}' | '[' | ']' | ':' => {
+                        state.push(c.to_string());
+                        state.push(String::new());
                     }
-                    if c != "," {
-                        res.push(c);
+                    ',' => {
+                        state.push(String::new());
                     }
-                } else {
-                    current += &c;
+                    _ => {
+                        state.last_mut().unwrap().push(c);
+                    }
                 }
-                (res, current)
-            }).0
+                state
+            }).into_iter().filter(|s| !s.is_empty()).collect()
         } else {
             vec!["\"".to_string() + &s + "\""]
         }
