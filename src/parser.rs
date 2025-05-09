@@ -1,23 +1,29 @@
 use crate::{JsonValue, Number};
 use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
 
-fn parse_value(s: &str) -> JsonValue {
+fn parse_value(s: &str) -> Result<JsonValue, std::io::Error> {
     if s.starts_with('"') {
-        JsonValue::String(s[1..s.len() - 1].to_string())
+        Ok(JsonValue::String(s[1..s.len() - 1].to_string()))
     } else if s.starts_with('n') {
-        JsonValue::Null
+        Ok(JsonValue::Null)
     } else if s.starts_with('t') {
-        JsonValue::Bool(true)
+        Ok(JsonValue::Bool(true))
     } else if s.starts_with('f') {
-        JsonValue::Bool(false)
+        Ok(JsonValue::Bool(false))
     } else if s.chars().any(|c| c == '.' || c == 'e' || c == 'E') {
-        JsonValue::Number(Number::Float(s.parse().unwrap()))
+        Ok(JsonValue::Number(Number::Float(match s.parse() {
+            Ok(val) => {val}
+            Err(_) => {return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to parse value correctly"))}
+        })))
     } else {
-        JsonValue::Number(Number::Int(s.parse().unwrap()))
+        Ok(JsonValue::Number(Number::Int(match s.parse() {
+            Ok(val) => {val}
+            Err(_) => {return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to parse value correctly"))}
+        })))
     }
 }
 
-fn parse_obj(file: &[String], pos: usize) -> (usize, JsonValue) {
+fn parse_obj(file: &[String], pos: usize) -> Result<(usize, JsonValue), std::io::Error> {
     let mut result = HashMap::new();
     let mut key = None;
     let (first_pos, mut pos) = (pos, pos+1);
@@ -26,15 +32,15 @@ fn parse_obj(file: &[String], pos: usize) -> (usize, JsonValue) {
         let token = &file[pos];
         match token.as_str() {
             "{" => {
-                let (diff, val) = parse_obj(file, pos);
+                let (diff, val) = parse_obj(file, pos)?;
                 result.insert(key.take().unwrap(), val);
                 pos += diff;
             }
             "}" => {
-                return (pos - first_pos, JsonValue::Object(result));
+                return Ok((pos - first_pos, JsonValue::Object(result)));
             }
             "[" => {
-                let (diff, val) = parse_arr(file, pos);
+                let (diff, val) = parse_arr(file, pos)?;
                 result.insert(key.take().unwrap(), val);
                 pos += diff;
             }
@@ -43,7 +49,10 @@ fn parse_obj(file: &[String], pos: usize) -> (usize, JsonValue) {
                 if key.is_none() {
                     key = Some(token[1..token.len() - 1].to_string());
                 } else {
-                    result.insert(key.take().unwrap(), parse_value(token));
+                    result.insert(match key.take() {
+                        Some(it) => it,
+                        None => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Expected key before the value")),
+                    }, parse_value(token)?);
                 }
             }
         };
@@ -51,7 +60,7 @@ fn parse_obj(file: &[String], pos: usize) -> (usize, JsonValue) {
     }
 }
 
-fn parse_arr(file: &[String], pos: usize) -> (usize, JsonValue) {
+fn parse_arr(file: &[String], pos: usize) -> Result<(usize, JsonValue), std::io::Error> {
     let (first_pos, mut pos) = (pos, pos+1);
     let mut result = Vec::new();
 
@@ -59,21 +68,21 @@ fn parse_arr(file: &[String], pos: usize) -> (usize, JsonValue) {
         let token = &file[pos];
         match token.as_str() {
             "{" => {
-                let (diff, val) = parse_obj(file, pos);
+                let (diff, val) = parse_obj(file, pos)?;
                 result.push(val);
                 pos += diff;
             }
             "," => {}
             "[" => {
-                let (diff, val) = parse_arr(file, pos);
+                let (diff, val) = parse_arr(file, pos)?;
                 result.push(val);
                 pos += diff;
             }
             "]" => {
-                return (pos - first_pos, JsonValue::Array(result));
+                return Ok((pos - first_pos, JsonValue::Array(result)));
             }
             _ => {
-                result.push(parse_value(token));
+                result.push(parse_value(token)?);
             }
         }
         pos += 1;
@@ -119,5 +128,5 @@ pub fn parse(path: &PathBuf) -> Result<JsonValue, std::io::Error> {
             }
             (state, String::new(), !odd)
         }
-    }).0, 0).1)
+    }).0, 0)?.1)
 }
