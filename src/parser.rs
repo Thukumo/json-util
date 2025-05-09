@@ -90,28 +90,30 @@ pub fn parse(path: &PathBuf) -> Result<JsonValue, std::io::Error> {
             (state, current, odd)
         } else {
             let s = current + &s;
-            state.push(
-                if odd {
-                    s.chars().filter(|c| !c.is_ascii_whitespace())
-                        .fold((Vec::new(), false), |state, c| {
-                        let (mut state, splitter) = state;
-                        if "{}[]:,".contains(c) {
+            if odd {
+                state.extend(s.chars().filter(|c| !c.is_ascii_whitespace())
+                    .fold((Vec::new(), false), |state, c| {
+                    let (mut state, splitter) = state;
+                    if "{}[]:,".contains(c) {
+                        state.push(c.to_string());
+                        (state, true)
+                    } else {
+                        if splitter {
                             state.push(c.to_string());
-                            (state, true)
                         } else {
-                            if splitter {
-                                state.push(c.to_string());
-                            } else {
-                                state.last_mut().unwrap().push(c);
-                            }
-                            (state, false)
+                            state.last_mut().unwrap().push(c);
                         }
-                    }).0
-                } else {
-                    vec!["\"".to_string() + &s + "\""]
-                }
-            );
+                        (state, false)
+                    }
+                }).0);
+            } else {
+                let mut s_p = String::with_capacity(s.len() + 2);
+                s_p.push('"');
+                s_p.push_str(&s);
+                s_p.push('"');
+                state.push(s_p);
+            }
             (state, String::new(), !odd)
         }
-    }).0.into_iter().flatten().collect::<Vec<_>>(), 0).1)
+    }).0, 0).1)
 }
