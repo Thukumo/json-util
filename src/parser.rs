@@ -101,8 +101,7 @@ pub fn parse(path: &PathBuf) -> Result<JsonValue, std::io::Error> {
             current.reserve_exact(s.len());
             current.push_str(s);
             if odd {
-                state.extend(current.chars().filter(|c| !c.is_whitespace())
-                    .fold((Vec::new(), false), |state, c| {
+                state.extend(current.chars().fold((Vec::new(), false), |state, c| {
                     let (mut state, splitter) = state;
                     match c {
                         '{' | '}' | '[' | ']' | ':' | ',' => {
@@ -110,7 +109,9 @@ pub fn parse(path: &PathBuf) -> Result<JsonValue, std::io::Error> {
                             (state, true)
                         }
                         _ => {
-                            if splitter {
+                            if c.is_whitespace() {
+                                return (state, splitter)
+                            } else if splitter {
                                 state.push(c.to_string());
                             } else {
                                 state.last_mut().unwrap().push(c);
