@@ -23,16 +23,16 @@ fn parse_value(s: &str) -> Result<JsonValue, std::io::Error> {
     }
 }
 
-fn parse_obj(file: &[String], pos: usize) -> Result<(usize, JsonValue), std::io::Error> {
+fn parse_obj(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), std::io::Error> {
     let mut result = HashMap::new();
     let mut key = None;
     let (first_pos, mut pos) = (pos, pos+1);
 
     loop {
-        let token = &file[pos];
+        let token = &tokens[pos];
         match token.as_str() {
             "{" => {
-                let (diff, val) = parse_obj(file, pos)?;
+                let (diff, val) = parse_obj(tokens, pos)?;
                 result.insert(key.take().unwrap(), val);
                 pos += diff;
             }
@@ -40,7 +40,7 @@ fn parse_obj(file: &[String], pos: usize) -> Result<(usize, JsonValue), std::io:
                 return Ok((pos - first_pos, JsonValue::Object(result)));
             }
             "[" => {
-                let (diff, val) = parse_arr(file, pos)?;
+                let (diff, val) = parse_arr(tokens, pos)?;
                 result.insert(key.take().unwrap(), val);
                 pos += diff;
             }
@@ -60,21 +60,21 @@ fn parse_obj(file: &[String], pos: usize) -> Result<(usize, JsonValue), std::io:
     }
 }
 
-fn parse_arr(file: &[String], pos: usize) -> Result<(usize, JsonValue), std::io::Error> {
+fn parse_arr(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), std::io::Error> {
     let (first_pos, mut pos) = (pos, pos+1);
     let mut result = Vec::new();
 
     loop {
-        let token = &file[pos];
+        let token = &tokens[pos];
         match token.as_str() {
             "{" => {
-                let (diff, val) = parse_obj(file, pos)?;
+                let (diff, val) = parse_obj(tokens, pos)?;
                 result.push(val);
                 pos += diff;
             }
             "," => {}
             "[" => {
-                let (diff, val) = parse_arr(file, pos)?;
+                let (diff, val) = parse_arr(tokens, pos)?;
                 result.push(val);
                 pos += diff;
             }
@@ -103,20 +103,22 @@ pub fn parse(path: &PathBuf) -> Result<JsonValue, std::io::Error> {
             if odd {
                 state.extend(current.chars().fold((Vec::new(), false), |state, c| {
                     let (mut state, splitter) = state;
-                    match c {
-                        '{' | '}' | '[' | ']' | ':' | ',' => {
-                            state.push(c.to_string());
-                            (state, true)
-                        }
-                        _ => {
-                            if c.is_whitespace() {
-                                return (state, splitter)
-                            } else if splitter {
+                    if c.is_whitespace() {
+                        (state, splitter)
+                    } else {
+                        match c {
+                            '{' | '}' | '[' | ']' | ':' | ',' => {
                                 state.push(c.to_string());
-                            } else {
-                                state.last_mut().unwrap().push(c);
+                                (state, true)
                             }
-                            (state, false)
+                            _ => {
+                                if splitter {
+                                    state.push(c.to_string());
+                                } else {
+                                    state.last_mut().unwrap().push(c);
+                                }
+                                (state, false)
+                            }
                         }
                     }
                 }).0);
