@@ -89,27 +89,31 @@ pub fn parse(path: &PathBuf) -> Result<JsonValue, std::io::Error> {
             current.push('"');
             (state, current, odd)
         } else {
-            let s = current + &s;
+            current.reserve_exact(s.len());
+            current.push_str(s);
             if odd {
-                state.extend(s.chars().filter(|c| !c.is_ascii_whitespace())
+                state.extend(current.chars().filter(|c| !c.is_ascii_whitespace())
                     .fold((Vec::new(), false), |state, c| {
                     let (mut state, splitter) = state;
-                    if "{}[]:,".contains(c) {
-                        state.push(c.to_string());
-                        (state, true)
-                    } else {
-                        if splitter {
+                    match c {
+                        '{' | '}' | '[' | ']' | ':' | ',' => {
                             state.push(c.to_string());
-                        } else {
-                            state.last_mut().unwrap().push(c);
+                            (state, true)
                         }
-                        (state, false)
+                        _ => {
+                            if splitter {
+                                state.push(c.to_string());
+                            } else {
+                                state.last_mut().unwrap().push(c);
+                            }
+                            (state, false)
+                        }
                     }
                 }).0);
             } else {
-                let mut s_p = String::with_capacity(s.len() + 2);
+                let mut s_p = String::with_capacity(current.len() + 2);
                 s_p.push('"');
-                s_p.push_str(&s);
+                s_p.push_str(&current);
                 s_p.push('"');
                 state.push(s_p);
             }
