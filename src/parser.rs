@@ -92,7 +92,7 @@ pub fn parse(path: &PathBuf) -> Result<JsonValue, std::io::Error> {
             current.reserve_exact(s.len());
             current.push_str(s);
             if odd {
-                state.extend(current.chars().filter(|c| !c.is_ascii_whitespace())
+                state.extend(current.chars().filter(|c| !c.is_whitespace())
                     .fold((Vec::new(), false), |state, c| {
                     let (mut state, splitter) = state;
                     match c {
