@@ -10,7 +10,7 @@ fn parse_value(s: &str) -> Result<JsonValue, std::io::Error> {
         Ok(JsonValue::Bool(true))
     } else if s.starts_with('f') {
         Ok(JsonValue::Bool(false))
-    } else if s.chars().any(|c| !c.is_digit(10)) {
+    } else if s.chars().any(|c| !c.is_digit(10) && c != '-') {
         Ok(JsonValue::Number(Number::Float(match s.parse() {
             Ok(val) => {val}
             Err(_) => {return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to parse Float correctly"))}
