@@ -2,25 +2,27 @@ use crate::{JsonValue, Number};
 use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
 
 fn parse_value(s: &str) -> Result<JsonValue, std::io::Error> {
-    if s.starts_with('"') {
-        Ok(JsonValue::String(s[1..s.len() - 1].to_string()))
-    } else if s.starts_with('n') {
-        Ok(JsonValue::Null)
-    } else if s.starts_with('t') {
-        Ok(JsonValue::Bool(true))
-    } else if s.starts_with('f') {
-        Ok(JsonValue::Bool(false))
-    } else if s.chars().any(|c| !c.is_digit(10) && c != '-') {
-        Ok(JsonValue::Number(Number::Float(match s.parse() {
-            Ok(val) => {val}
-            Err(_) => {return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to parse Float correctly"))}
-        })))
-    } else {
-        Ok(JsonValue::Number(Number::Int(match s.parse() {
-            Ok(val) => {val}
-            Err(_) => {return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to parse Int correctly"))}
-        })))
-    }
+    Ok(
+        if s.starts_with('"') {
+            JsonValue::String(s[1..s.len() - 1].to_string())
+        } else if s.starts_with('n') {
+            JsonValue::Null
+        } else if s.starts_with('t') {
+            JsonValue::Bool(true)
+        } else if s.starts_with('f') {
+            JsonValue::Bool(false)
+        } else if s.chars().any(|c| !c.is_digit(10) && c != '-') {
+            JsonValue::Number(Number::Float(match s.parse() {
+                Ok(val) => {val}
+                Err(_) => {return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to parse Float correctly"))}
+            }))
+        } else {
+            JsonValue::Number(Number::Int(match s.parse() {
+                Ok(val) => {val}
+                Err(_) => {return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to parse Int correctly"))}
+            }))
+        }
+    )
 }
 
 fn parse_obj(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), std::io::Error> {
@@ -94,6 +96,7 @@ pub fn parse(path: &PathBuf) -> Result<JsonValue, std::io::Error> {
         .fold((Vec::new(), String::new(), true), |state, s| {
         let (mut state, mut current, odd) = state;
         if s.ends_with('\\') {
+            current.reserve_exact(s.len() + 1);
             current.push_str(&s);
             current.push('"');
             (state, current, odd)
