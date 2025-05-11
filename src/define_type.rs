@@ -4,6 +4,25 @@ use std::{collections::HashMap, ops::Index};
 #[allow(dead_code)]
 pub struct TypeUnmatchedError(String);
 
+#[derive(Debug)]
+pub enum ParseError {
+    InvalidData(String),
+    ParseFloatError(std::num::ParseFloatError),
+    ParseIntError(std::num::ParseIntError),
+}
+
+impl From<std::num::ParseFloatError> for ParseError {
+    fn from(err: std::num::ParseFloatError) -> Self {
+        ParseError::ParseFloatError(err)
+    }
+}
+
+impl From<std::num::ParseIntError> for ParseError {
+    fn from(err: std::num::ParseIntError) -> Self {
+        ParseError::ParseIntError(err)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Number {
     Int(i64),

@@ -1,31 +1,26 @@
-use crate::{JsonValue, Number};
+use crate::{JsonValue, Number, ParseError};
 use std::collections::HashMap;
 
-fn parse_value(s: &str) -> Result<JsonValue, std::io::Error> {
+fn parse_value(s: &str) -> Result<JsonValue, ParseError> {
+    let s = s.to_lowercase();
     Ok(
         if s.starts_with('"') {
             JsonValue::String(s[1..s.len() - 1].to_string())
-        } else if s.starts_with('n') {
+        } else if s == "null" {
             JsonValue::Null
-        } else if s.starts_with('t') {
+        } else if s == "true" {
             JsonValue::Bool(true)
-        } else if s.starts_with('f') {
+        } else if s == "false" {
             JsonValue::Bool(false)
         } else if s.chars().any(|c| !c.is_digit(10) && c != '-') {
-            JsonValue::Number(Number::Float(match s.parse() {
-                Ok(val) => {val}
-                Err(_) => {return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to parse Float correctly"))}
-            }))
+            JsonValue::Number(Number::Float(s.parse()?))
         } else {
-            JsonValue::Number(Number::Int(match s.parse() {
-                Ok(val) => {val}
-                Err(_) => {return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to parse Int correctly"))}
-            }))
+            JsonValue::Number(Number::Int(s.parse()?))
         }
     )
 }
 
-fn parse_obj(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), std::io::Error> {
+fn parse_obj(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), ParseError> {
     let mut result = HashMap::new();
     let mut key = None;
     let (first_pos, mut pos) = (pos, pos+1);
@@ -51,10 +46,10 @@ fn parse_obj(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), std::i
                 if key.is_none() {
                     key = Some(token[1..token.len() - 1].to_string());
                 } else {
-                    result.insert(match key.take() {
-                        Some(it) => it,
-                        None => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Expected key before the value")),
-                    }, parse_value(token)?);
+                    result.insert(
+                        key.take().ok_or(ParseError::InvalidData("Expected key before the value".to_string()))?,
+                        parse_value(token)?,
+                    );
                 }
             }
         };
@@ -62,7 +57,7 @@ fn parse_obj(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), std::i
     }
 }
 
-fn parse_arr(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), std::io::Error> {
+fn parse_arr(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), ParseError> {
     let (first_pos, mut pos) = (pos, pos+1);
     let mut result = Vec::new();
 
@@ -91,7 +86,7 @@ fn parse_arr(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), std::i
     }
 }
 
-pub fn parse(s: &str) -> Result<JsonValue, std::io::Error> {
+pub fn parse(s: &str) -> Result<JsonValue, ParseError> {
     Ok(parse_obj(&s.split('"')
         .fold((Vec::new(), String::new(), true), |state, s| {
         let (mut state, mut current, odd) = state;
