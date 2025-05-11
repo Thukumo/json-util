@@ -45,10 +45,7 @@ fn parse_obj(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), ParseE
                 if key.is_none() {
                     key = Some(token[1..token.len() - 1].to_string());
                 } else {
-                    result.insert(
-                        key.take().ok_or_else(|| ParseError::InvalidData("Expected key before the value".to_string()))?,
-                        parse_value(token)?,
-                    );
+                    result.insert(key.take().unwrap(), parse_value(token)?);
                 }
             }
         };
@@ -58,7 +55,7 @@ fn parse_obj(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), ParseE
 
 fn parse_arr(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), ParseError> {
     let (first_pos, mut pos) = (pos, pos+1);
-    let mut result = Vec::new();
+    let mut result = Vec::with_capacity(tokens.len()/2);
 
     loop {
         let token = &tokens[pos];
