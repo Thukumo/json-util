@@ -11,7 +11,7 @@ fn parse_value(s: &str) -> Result<JsonValue, ParseError> {
             JsonValue::Bool(true)
         } else if s == "false" {
             JsonValue::Bool(false)
-        } else if s.chars().any(|c| !c.is_digit(10) && c != '-') {
+        } else if s.chars().any(|c| !c.is_ascii_digit() && c != '-') {
             JsonValue::Number(Number::Float(s.parse()?))
         } else {
             JsonValue::Number(Number::Int(s.parse()?))
@@ -91,7 +91,7 @@ pub fn parse(s: &str) -> Result<JsonValue, ParseError> {
         let (mut state, mut current, odd) = state;
         if s.ends_with('\\') {
             current.reserve_exact(s.len() + 1);
-            current.push_str(&s);
+            current.push_str(s);
             current.push('"');
             (state, current, odd)
         } else {
