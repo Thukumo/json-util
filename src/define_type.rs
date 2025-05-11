@@ -18,7 +18,7 @@ macro_rules! impl_try_into {
                 if let Self::$variant(value) = self {
                     Ok(value)
                 } else {
-                    Err(TypeUnmatchedError(format!("Expected {}, but found another variant", stringify!($variant))))
+                    Err(TypeUnmatchedError(format!("Expected {}::{}", stringify!($enum_type), stringify!($variant))))
                 }
             }
         }
@@ -36,6 +36,7 @@ pub enum JsonValue {
     Null,
     Object(HashMap<String, JsonValue>),
     Array(Vec<JsonValue>),
+    InValidLocation,
 }
 
 impl_try_into!(JsonValue, String, String);
@@ -48,9 +49,13 @@ impl Index<&str> for JsonValue {
     type Output = Self;
     fn index(&self, index: &str) -> &Self::Output {
         if let Self::Object(map) = self {
-            map.get(index).expect(&format!("Key '{}' not found in object", index))
+            if let Some(val) = map.get(index) {
+                val
+            } else {
+                &Self::InValidLocation
+            }
         } else {
-            panic!("Attempted to index a non-object JsonValue");
+            &Self::InValidLocation
         }
     }
 }
