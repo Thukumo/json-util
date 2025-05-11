@@ -2,7 +2,6 @@ use crate::{JsonValue, Number, ParseError};
 use std::collections::HashMap;
 
 fn parse_value(s: &str) -> Result<JsonValue, ParseError> {
-    let s = s.to_lowercase();
     Ok(
         if s.starts_with('"') {
             JsonValue::String(s[1..s.len() - 1].to_string())
@@ -47,7 +46,7 @@ fn parse_obj(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), ParseE
                     key = Some(token[1..token.len() - 1].to_string());
                 } else {
                     result.insert(
-                        key.take().ok_or(ParseError::InvalidData("Expected key before the value".to_string()))?,
+                        key.take().ok_or_else(|| ParseError::InvalidData("Expected key before the value".to_string()))?,
                         parse_value(token)?,
                     );
                 }
