@@ -1,5 +1,5 @@
 use crate::{JsonValue, Number};
-use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
+use std::collections::HashMap;
 
 fn parse_value(s: &str) -> Result<JsonValue, std::io::Error> {
     Ok(
@@ -91,8 +91,8 @@ fn parse_arr(tokens: &[String], pos: usize) -> Result<(usize, JsonValue), std::i
     }
 }
 
-pub fn parse(path: &PathBuf) -> Result<JsonValue, std::io::Error> {
-    Ok(parse_obj(&read_to_string(path)?.split('"')
+pub fn parse(s: &str) -> Result<JsonValue, std::io::Error> {
+    Ok(parse_obj(&s.split('"')
         .fold((Vec::new(), String::new(), true), |state, s| {
         let (mut state, mut current, odd) = state;
         if s.ends_with('\\') {
